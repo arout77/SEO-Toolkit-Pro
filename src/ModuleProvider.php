@@ -1,5 +1,4 @@
 <?php
-
 namespace Arout\SeoToolkitPro;
 
 use Arout\SeoToolkitPro\Analysis\InternalLinkSuggester;
@@ -10,6 +9,8 @@ use Arout\SeoToolkitPro\Crawler\RouteCrawler;
 use Arout\SeoToolkitPro\Listeners\RouteNotFoundListener;
 use Arout\SeoToolkitPro\Twig\AnalyticsTwigFunctions;
 use Rhapsody\Core\Events\RouteNotFound;
+use Rhapsody\Core\Modules\Contracts\ModuleServiceProviderInterface;
+use Rhapsody\Core\Modules\ModuleContext;
 
 /**
  * NOTE: The exact ModuleProvider contract (register() vs boot(), what a
@@ -18,7 +19,7 @@ use Rhapsody\Core\Events\RouteNotFound;
  * twig()) is assumed here from those confirmed facades. Adjust method
  * names to match the real ModuleContext signature if they differ.
  */
-class ModuleProvider
+class ModuleProvider implements ModuleServiceProviderInterface
 {
     public function register(\Rhapsody\Core\Contracts\ModuleContext $context): void
     {
