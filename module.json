@@ -1,16 +1,21 @@
 {
-    "name": "seo-toolkit-pro",
-    "label": "SEO Toolkit Pro",
-    "provider": "Arout\\SeoToolkitPro\\ModuleProvider",
+    "name": "arout/seo-toolkit-pro",
+    "type": "rhapsody-module",
     "version": "1.0.0",
-    "requires": {
-        "modules": ["seo-toolkit"]
-    },
-    "permissions": [
-        "events.listen",
-        "routes.register",
-        "database.access",
-        "settings.manage",
-        "twig.functions"
-    ]
+    "rhapsody_core": "^2.0",
+    "title": "SEO Toolkit Pro",
+    "description": "Pro tier for arout/seo-toolkit: on-page audit dashboard, readability scoring, 404 monitor, redirect manager, internal linking suggestions, and analytics tag manager.",
+    "category": "seo",
+    "license": "proprietary",
+    "author": { "name": "Andrew Rout" },
+    "provider": "Arout\\SeoToolkitPro\\ModuleProvider",
+    "permissions": {
+        "events.listen": {
+            "listen": ["Rhapsody\\Core\\Events\\RouteNotFound"]
+        },
+        "routes.register": {},
+        "database.access": {},
+        "settings.manage": {},
+        "twig.functions": {}
+    }
 }
