@@ -62,10 +62,19 @@ comments at the point it's used:
   `BaseController`). `ProDashboardController` currently has inline
   placeholder `view()`/`redirect()` methods standing in for whatever the
   real base gives modules — swap those out once confirmed.
-- **Migration delivery mechanism** — shipped as a single `.sql` file under
-  `database/migrations/`. Not confirmed whether modules install schema via
-  raw SQL, PHP migration classes (mirroring `SkeletonMigrationInterface`),
-  or something else via `DatabaseFacade`.
+- **`DatabaseFacade::raw()`** — confirmed that `ModuleServiceProviderInterface::install()`
+  is the real lifecycle hook for schema setup (and `uninstall()` for tear-down),
+  so `ModuleProvider::install()` reads and executes the `.sql` file there.
+  Still guessed: that `raw($statement)` is the actual method name for
+  running an arbitrary SQL string through `DatabaseFacade` — if this
+  errors, only that one call needs to change, not the SQL itself.
+- **`register()` vs `boot()` split** — confirmed the interface has both
+  (plus `install()`/`uninstall()`), but not which one is meant for what.
+  Current guess: `register()` for bindings with no cross-module
+  dependencies, `boot()` for anything registered after all modules are
+  known (routes, event listeners, Twig functions all currently live in
+  `boot()`). If routes/events need to be in `register()` instead, moving
+  the block is the only fix needed.
 
 None of these change the actual logic (crawl → analyze → store; check
 redirects → else log 404; expose analytics scripts via Twig) — they're all
