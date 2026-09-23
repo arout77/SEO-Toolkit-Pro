@@ -1,0 +1,16 @@
+{
+    "name": "seo-toolkit-pro",
+    "label": "SEO Toolkit Pro",
+    "provider": "Arout\\SeoToolkitPro\\ModuleProvider",
+    "version": "1.0.0",
+    "requires": {
+        "modules": ["seo-toolkit"]
+    },
+    "permissions": [
+        "events.listen",
+        "routes.register",
+        "database.access",
+        "settings.manage",
+        "twig.functions"
+    ]
+}

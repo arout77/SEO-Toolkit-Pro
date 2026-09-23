@@ -1,0 +1,36 @@
+{# NOTE: extends assumed — swap for whatever layout Core's own admin/docs views use #}
+{% extends "layouts/admin.twig" %}
+{% block content %}
+<h1>SEO Audit</h1>
+<form method="post" action="/seo-toolkit-pro/audit/scan">
+    {{ csrf_field()|raw }}
+    <button type="submit">Run Scan</button>
+</form>
+
+<table>
+    <thead>
+        <tr><th>Path</th><th>Title</th><th>Title len</th><th>Meta desc len</th><th>H1s</th><th>Images missing alt</th><th>Canonical</th><th>Readability</th></tr>
+    </thead>
+    <tbody>
+    {% for audit in audits %}
+        <tr>
+            <td>{{ audit.route_path }}</td>
+            <td>{{ audit.title }}</td>
+            <td class="{{ audit.title_length > 60 or audit.title_length < 30 ? 'warn' : '' }}">{{ audit.title_length }}</td>
+            <td class="{{ audit.meta_description_length > 160 or audit.meta_description_length < 50 ? 'warn' : '' }}">{{ audit.meta_description_length }}</td>
+            <td class="{{ audit.h1_count != 1 ? 'warn' : '' }}">{{ audit.h1_count }}</td>
+            <td class="{{ audit.images_missing_alt > 0 ? 'warn' : '' }}">{{ audit.images_missing_alt }} / {{ audit.images_total }}</td>
+            <td class="{{ not audit.has_canonical ? 'warn' : '' }}">{{ audit.has_canonical ? 'Yes' : 'No' }}</td>
+            <td>{{ audit.readability_label }} ({{ audit.readability_score }})</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Internal linking suggestions</h2>
+<ul>
+{% for s in link_suggestions %}
+    <li>Link <strong>{{ s.from }}</strong> &harr; <strong>{{ s.to }}</strong> — shared: {{ s.shared_keywords|join(', ') }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

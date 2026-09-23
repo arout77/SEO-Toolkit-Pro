@@ -1,0 +1,26 @@
+{% extends "layouts/admin.twig" %}
+{% block content %}
+<h1>404 Monitor</h1>
+<table>
+    <thead><tr><th>URL</th><th>Hits</th><th>First seen</th><th>Last seen</th><th></th></tr></thead>
+    <tbody>
+    {% for entry in entries %}
+        <tr>
+            <td>{{ entry.url }}</td>
+            <td>{{ entry.hits }}</td>
+            <td>{{ entry.first_seen }}</td>
+            <td>{{ entry.last_seen }}</td>
+            <td>
+                <form method="post" action="/seo-toolkit-pro/404s/promote">
+                    {{ csrf_field()|raw }}
+                    <input type="hidden" name="source_path" value="{{ entry.url }}">
+                    <input type="text" name="target_path" placeholder="/redirect-to" required>
+                    <select name="status_code"><option value="301">301</option><option value="302">302</option></select>
+                    <button type="submit">Create redirect</button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

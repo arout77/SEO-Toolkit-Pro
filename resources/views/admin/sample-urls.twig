@@ -1,0 +1,30 @@
+{% extends "layouts/admin.twig" %}
+{% block content %}
+<h1>Sample URLs</h1>
+<p>Register one real, concrete URL per parameterized route pattern so the audit crawler has something to request.</p>
+<form method="post" action="/seo-toolkit-pro/sample-urls">
+    {{ csrf_field()|raw }}
+    <input type="text" name="route_pattern" placeholder="/products/{slug}" required>
+    <input type="text" name="sample_url" placeholder="/products/leather-wallet" required>
+    <input type="text" name="label" placeholder="Label (optional)">
+    <button type="submit">Add</button>
+</form>
+<table>
+    <thead><tr><th>Route pattern</th><th>Sample URL</th><th>Label</th><th></th></tr></thead>
+    <tbody>
+    {% for s in sample_urls %}
+        <tr>
+            <td>{{ s.route_pattern }}</td>
+            <td>{{ s.sample_url }}</td>
+            <td>{{ s.label }}</td>
+            <td>
+                <form method="post" action="/seo-toolkit-pro/sample-urls/{{ s.id }}/delete">
+                    {{ csrf_field()|raw }}
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

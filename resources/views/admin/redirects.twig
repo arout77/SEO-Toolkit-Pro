@@ -1,0 +1,30 @@
+{% extends "layouts/admin.twig" %}
+{% block content %}
+<h1>Redirects</h1>
+<form method="post" action="/seo-toolkit-pro/redirects">
+    {{ csrf_field()|raw }}
+    <input type="text" name="source_path" placeholder="/old-path" required>
+    <input type="text" name="target_path" placeholder="/new-path" required>
+    <select name="status_code"><option value="301">301</option><option value="302">302</option></select>
+    <button type="submit">Add redirect</button>
+</form>
+<table>
+    <thead><tr><th>Source</th><th>Target</th><th>Status</th><th>Hits</th><th></th></tr></thead>
+    <tbody>
+    {% for r in redirects %}
+        <tr>
+            <td>{{ r.source_path }}</td>
+            <td>{{ r.target_path }}</td>
+            <td>{{ r.status_code }}</td>
+            <td>{{ r.hit_count }}</td>
+            <td>
+                <form method="post" action="/seo-toolkit-pro/redirects/{{ r.id }}/delete">
+                    {{ csrf_field()|raw }}
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

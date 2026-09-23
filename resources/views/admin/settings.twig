@@ -1,0 +1,12 @@
+{% extends "layouts/admin.twig" %}
+{% block content %}
+<h1>Analytics Settings</h1>
+<form method="post" action="/seo-toolkit-pro/settings">
+    {{ csrf_field()|raw }}
+    <label>GA4 Measurement ID <input type="text" name="ga4_id" value="{{ ga4_id }}" placeholder="G-XXXXXXX"></label>
+    <label>Meta Pixel ID <input type="text" name="meta_pixel_id" value="{{ meta_pixel_id }}"></label>
+    <label>Custom script (raw HTML/JS, injected as-is) <textarea name="custom_script">{{ custom_script }}</textarea></label>
+    <button type="submit">Save</button>
+</form>
+<p>Remember: your theme's layout must call <code>seo_analytics_scripts()|raw</code> near <code>&lt;/head&gt;</code> for any of this to actually render.</p>
+{% endblock %}
