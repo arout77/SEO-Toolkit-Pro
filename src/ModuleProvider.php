@@ -1,5 +1,4 @@
 <?php
-
 namespace Arout\SeoToolkitPro;
 
 use Arout\SeoToolkitPro\Analysis\InternalLinkSuggester;
@@ -9,9 +8,9 @@ use Arout\SeoToolkitPro\Controllers\ProDashboardController;
 use Arout\SeoToolkitPro\Crawler\RouteCrawler;
 use Arout\SeoToolkitPro\Listeners\RouteNotFoundListener;
 use Arout\SeoToolkitPro\Twig\AnalyticsTwigFunctions;
-use Rhapsody\Core\Contracts\ModuleContext;
 use Rhapsody\Core\Events\RouteNotFound;
 use Rhapsody\Core\Modules\Contracts\ModuleServiceProviderInterface;
+use Rhapsody\Core\Modules\ModuleContext;
 
 class ModuleProvider implements ModuleServiceProviderInterface
 {
