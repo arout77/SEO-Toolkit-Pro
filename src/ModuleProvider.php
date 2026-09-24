@@ -1,5 +1,4 @@
 <?php
-
 namespace Arout\SeoToolkitPro;
 
 use Arout\SeoToolkitPro\Analysis\InternalLinkSuggester;
@@ -9,9 +8,9 @@ use Arout\SeoToolkitPro\Controllers\ProDashboardController;
 use Arout\SeoToolkitPro\Crawler\RouteCrawler;
 use Arout\SeoToolkitPro\Listeners\RouteNotFoundListener;
 use Arout\SeoToolkitPro\Twig\AnalyticsTwigFunctions;
-use Rhapsody\Core\Modules\ModuleContext;
 use Rhapsody\Core\Events\RouteNotFound;
 use Rhapsody\Core\Modules\Contracts\ModuleServiceProviderInterface;
+use Rhapsody\Core\Modules\ModuleContext;
 
 class ModuleProvider implements ModuleServiceProviderInterface
 {
@@ -48,9 +47,14 @@ class ModuleProvider implements ModuleServiceProviderInterface
         $context->routes()->get('/settings', [$dashboard, 'settingsForm']);
         $context->routes()->post('/settings', [$dashboard, 'saveSettings']);
 
-        $context->twig()->functions([
-            'seo_analytics_scripts' => new AnalyticsTwigFunctions($context->settings()),
-        ]);
+        // FIX: TwigFacade has no functions() method — it's addFunction($name, $callback, $options = []),
+        // one call per function, and $callback must be a callable, not an array/object map.
+        // This assumes AnalyticsTwigFunctions implements __invoke() so the instance itself is callable;
+        // if it exposes a named render method instead, this needs to be [$instance, 'methodName'].
+        $context->twig()->addFunction(
+            'seo_analytics_scripts',
+            new AnalyticsTwigFunctions($context->settings())
+        );
     }
 
     /**

@@ -1,11 +1,12 @@
 <?php
-
 namespace Arout\SeoToolkitPro\Twig;
 
 /**
- * Invocable so it registers directly as a Twig function
- * ({{ seo_analytics_scripts()|raw }}) via the twig.functions permission —
- * themes must add this call near </head>, same opt-in pattern as
+ * Invocable so it registers directly as a Twig function via the
+ * twig.functions permission. TwigFacade::addFunction() prefixes the
+ * registered name with mod_{slug}_, so the actual call a theme must add
+ * near </head> is {{ mod_seo_toolkit_pro_seo_analytics_scripts()|raw }} —
+ * not the bare name — same opt-in placement pattern as
  * {{ schema_markup|raw }}.
  */
 class AnalyticsTwigFunctions
