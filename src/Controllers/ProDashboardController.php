@@ -5,19 +5,17 @@ namespace Arout\SeoToolkitPro\Controllers;
 use Arout\SeoToolkitPro\Analysis\InternalLinkSuggester;
 use Arout\SeoToolkitPro\Crawler\RouteCrawler;
 use Rhapsody\Core\Http\Request;
+use Rhapsody\Core\Modules\Facades\DatabaseFacade;
 
 /**
- * NOTE: base class assumed. Core's own admin/docs/auth controllers live in
- * src/Controllers/ but no shared base class name is confirmed for
- * module-owned controllers (App-level ones extend BaseController). If
- * modules get their own base (e.g. Rhapsody\Core\Controllers\Controller),
- * extend that instead and swap $this->view()/$this->schema in for the
- * inline placeholders below.
+ * NOTE: base class still assumed — see README. $this->view()/$this->redirect()
+ * below remain inline placeholders standing in for whatever the real base
+ * controller gives modules.
  */
 class ProDashboardController
 {
     public function __construct(
-        private readonly object $database,
+        private readonly DatabaseFacade $database,
         private readonly object $settings,
         private readonly RouteCrawler $crawler,
         private readonly InternalLinkSuggester $linkSuggester
@@ -26,7 +24,9 @@ class ProDashboardController
 
     public function audit(): mixed
     {
-        $audits = $this->database->table('mod_seo_toolkit_pro_audits')->get();
+        $audits = $this->database->select('mod_arout_seo_toolkit_pro_audits');
+        usort($audits, fn ($a, $b) => strcmp($a['route_path'], $b['route_path']));
+
         $suggestions = $this->linkSuggester->suggest(array_map(
             fn ($row) => ['route_path' => $row['route_path'], 'keywords' => json_decode($row['keywords'] ?? '[]', true)],
             $audits
@@ -42,12 +42,19 @@ class ProDashboardController
 
     public function runScan(): mixed
     {
-        $sampleUrls = $this->database->table('mod_seo_toolkit_pro_sample_urls')->get();
+        $sampleUrls = $this->database->select('mod_arout_seo_toolkit_pro_sample_urls');
         $results = $this->crawler->crawl($sampleUrls);
 
         foreach ($results as $row) {
-            // Upsert on route_path (unique key) so re-scanning refreshes in place.
-            $this->database->table('mod_seo_toolkit_pro_audits')->upsert($row, uniqueBy: 'route_path');
+            // No upsert() on DatabaseFacade — select by the unique key, then
+            // insert or update depending on whether a row already exists.
+            $existing = $this->database->select('mod_arout_seo_toolkit_pro_audits', ['route_path' => $row['route_path']]);
+
+            if ($existing) {
+                $this->database->update('mod_arout_seo_toolkit_pro_audits', $row, ['id' => $existing[0]['id']]);
+            } else {
+                $this->database->insert('mod_arout_seo_toolkit_pro_audits', $row);
+            }
         }
 
         return $this->redirect('/seo-toolkit-pro/audit')->withFlash('success', count($results) . ' page(s) scanned.');
@@ -55,11 +62,12 @@ class ProDashboardController
 
     public function notFoundLog(): mixed
     {
-        $raw = $this->database->table('mod_seo_toolkit_pro_404s')
-            ->orderBy('occurred_at', 'desc')
-            ->get();
+        // Ordering isn't available on select(), so this uses query() —
+        // read-only, but not restricted to the module's own tables, so
+        // it's fine to read mod_arout_seo_toolkit_pro_404s through it.
+        $raw = $this->database->query('SELECT * FROM `mod_arout_seo_toolkit_pro_404s` ORDER BY occurred_at DESC');
 
-        // Aggregate at query/display time per the "log everything, aggregate on read" decision.
+        // Aggregated at read time per the "log everything, aggregate on read" decision.
         $aggregated = [];
         foreach ($raw as $hit) {
             $url = $hit['url'];
@@ -81,14 +89,10 @@ class ProDashboardController
 
     public function promoteToRedirect(Request $request): mixed
     {
-        $source = $request->input('source_path');
-        $target = $request->input('target_path');
-        $status = (int) $request->input('status_code', 301);
-
-        $this->database->table('mod_seo_toolkit_pro_redirects')->insert([
-            'source_path' => $source,
-            'target_path' => $target,
-            'status_code' => $status,
+        $this->database->insert('mod_arout_seo_toolkit_pro_redirects', [
+            'source_path' => $request->input('source_path'),
+            'target_path' => $request->input('target_path'),
+            'status_code' => (int) $request->input('status_code', 301),
             'hit_count' => 0,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
@@ -102,13 +106,13 @@ class ProDashboardController
         return $this->view('admin/redirects', [
             'title' => 'Redirects — SEO Toolkit Pro',
             'meta_description' => 'Manage 301/302 redirects for retired or moved URLs.',
-            'redirects' => $this->database->table('mod_seo_toolkit_pro_redirects')->get(),
+            'redirects' => $this->database->select('mod_arout_seo_toolkit_pro_redirects'),
         ]);
     }
 
     public function storeRedirect(Request $request): mixed
     {
-        $this->database->table('mod_seo_toolkit_pro_redirects')->insert([
+        $this->database->insert('mod_arout_seo_toolkit_pro_redirects', [
             'source_path' => $request->input('source_path'),
             'target_path' => $request->input('target_path'),
             'status_code' => (int) $request->input('status_code', 301),
@@ -122,7 +126,7 @@ class ProDashboardController
 
     public function deleteRedirect(int $id): mixed
     {
-        $this->database->table('mod_seo_toolkit_pro_redirects')->where('id', '=', $id)->delete();
+        $this->database->delete('mod_arout_seo_toolkit_pro_redirects', ['id' => $id]);
         return $this->redirect('/seo-toolkit-pro/redirects')->withFlash('success', 'Redirect removed.');
     }
 
@@ -131,13 +135,13 @@ class ProDashboardController
         return $this->view('admin/sample-urls', [
             'title' => 'Sample URLs — SEO Toolkit Pro',
             'meta_description' => 'Register concrete example URLs so parameterized routes can be audited and scored.',
-            'sample_urls' => $this->database->table('mod_seo_toolkit_pro_sample_urls')->get(),
+            'sample_urls' => $this->database->select('mod_arout_seo_toolkit_pro_sample_urls'),
         ]);
     }
 
     public function storeSampleUrl(Request $request): mixed
     {
-        $this->database->table('mod_seo_toolkit_pro_sample_urls')->insert([
+        $this->database->insert('mod_arout_seo_toolkit_pro_sample_urls', [
             'route_pattern' => $request->input('route_pattern'),
             'sample_url' => $request->input('sample_url'),
             'label' => $request->input('label'),
@@ -149,7 +153,7 @@ class ProDashboardController
 
     public function deleteSampleUrl(int $id): mixed
     {
-        $this->database->table('mod_seo_toolkit_pro_sample_urls')->where('id', '=', $id)->delete();
+        $this->database->delete('mod_arout_seo_toolkit_pro_sample_urls', ['id' => $id]);
         return $this->redirect('/seo-toolkit-pro/sample-urls')->withFlash('success', 'Sample URL removed.');
     }
 
@@ -174,7 +178,6 @@ class ProDashboardController
     }
 
     // --- Placeholders standing in for whatever base controller Rhapsody gives modules ---
-    // NOTE: replace these three with the real base-controller methods once confirmed.
     private function view(string $template, array $data = []): mixed
     {
         return ['__view' => $template, '__data' => $data];

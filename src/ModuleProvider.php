@@ -1,4 +1,5 @@
 <?php
+
 namespace Arout\SeoToolkitPro;
 
 use Arout\SeoToolkitPro\Analysis\InternalLinkSuggester;
@@ -8,37 +9,25 @@ use Arout\SeoToolkitPro\Controllers\ProDashboardController;
 use Arout\SeoToolkitPro\Crawler\RouteCrawler;
 use Arout\SeoToolkitPro\Listeners\RouteNotFoundListener;
 use Arout\SeoToolkitPro\Twig\AnalyticsTwigFunctions;
+use Rhapsody\Core\Modules\ModuleContext;
 use Rhapsody\Core\Events\RouteNotFound;
 use Rhapsody\Core\Modules\Contracts\ModuleServiceProviderInterface;
-use Rhapsody\Core\Modules\ModuleContext;
 
 class ModuleProvider implements ModuleServiceProviderInterface
 {
-    /**
-     * NOTE: register() vs boot() split is still a guess — I don't have the
-     * interface's doc comments or Core's own ModuleProvider to compare
-     * against. My assumption: register() should be safe to run in
-     * isolation (no dependency on other modules being wired yet), boot()
-     * runs once every module has been registered. If routes/events/twig
-     * functions actually need to be in register() instead (or it turns out
-     * order doesn't matter and there's only one meaningful phase), moving
-     * this block between the two methods is the only likely fix.
-     */
     public function register(ModuleContext $context): void
     {
-        // No cross-module bindings needed yet — everything below depends
-        // only on this module's own facades, so it's all in boot() for now.
+        // No cross-module bindings needed — everything below depends only
+        // on this module's own facades, so it all lives in boot().
     }
 
     public function boot(ModuleContext $context): void
     {
-        // --- 404 monitor + redirect manager ---
         $context->events()->listen(
             RouteNotFound::class,
             new RouteNotFoundListener($context->database())
         );
 
-        // --- Admin dashboard routes ---
         $dashboard = new ProDashboardController(
             $context->database(),
             $context->settings(),
@@ -59,41 +48,83 @@ class ModuleProvider implements ModuleServiceProviderInterface
         $context->routes()->get('/settings', [$dashboard, 'settingsForm']);
         $context->routes()->post('/settings', [$dashboard, 'saveSettings']);
 
-        // --- Analytics tag manager ---
         $context->twig()->functions([
             'seo_analytics_scripts' => new AnalyticsTwigFunctions($context->settings()),
         ]);
     }
 
     /**
-     * Runs once, on `module:install`. This is the real answer to the
-     * migration-delivery question the README flagged as unconfirmed —
-     * there's a dedicated lifecycle hook for it rather than a generic
-     * migration-file glob, so the schema just runs straight from here.
-     *
-     * NOTE: $context->database()->raw($sql) is a guess at how to execute
-     * an arbitrary multi-statement SQL file through DatabaseFacade — the
-     * "scoped CRUD + Doctrine" description doesn't confirm a raw-execute
-     * method exists, or what it's called if so. If this errors, that's
-     * the one line to fix; the SQL file itself doesn't need to change.
+     * migrate() takes exactly one CREATE/ALTER/DROP TABLE statement per
+     * call (it extracts a single table name via regex to check ownership),
+     * so each table is its own call rather than one multi-statement file.
      */
     public function install(ModuleContext $context): void
     {
-        $sql = file_get_contents(__DIR__ . '/../database/migrations/2026_09_24_000001_create_seo_toolkit_pro_tables.sql');
+        $context->database()->migrate(<<<SQL
+            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_audits (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                route_path VARCHAR(255) NOT NULL,
+                source_type ENUM('static', 'sample_url') NOT NULL DEFAULT 'static',
+                route_pattern VARCHAR(255) NULL,
+                title VARCHAR(255) NULL,
+                title_length INT UNSIGNED NULL,
+                meta_description TEXT NULL,
+                meta_description_length INT UNSIGNED NULL,
+                h1_count INT UNSIGNED NOT NULL DEFAULT 0,
+                images_total INT UNSIGNED NOT NULL DEFAULT 0,
+                images_missing_alt INT UNSIGNED NOT NULL DEFAULT 0,
+                has_canonical TINYINT(1) NOT NULL DEFAULT 0,
+                word_count INT UNSIGNED NOT NULL DEFAULT 0,
+                readability_score DECIMAL(5,2) NULL,
+                readability_label VARCHAR(64) NULL,
+                keywords TEXT NULL,
+                scanned_at DATETIME NOT NULL,
+                UNIQUE KEY uniq_route_path (route_path(191))
+            )
+            SQL);
 
-        foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
-            $context->database()->raw($statement);
-        }
+        $context->database()->migrate(<<<SQL
+            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_404s (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                url VARCHAR(512) NOT NULL,
+                referrer VARCHAR(512) NULL,
+                ip_address VARCHAR(45) NULL,
+                user_agent VARCHAR(255) NULL,
+                occurred_at DATETIME NOT NULL,
+                KEY idx_url (url(191)),
+                KEY idx_occurred_at (occurred_at)
+            )
+            SQL);
+
+        $context->database()->migrate(<<<SQL
+            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_redirects (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                source_path VARCHAR(512) NOT NULL,
+                target_path VARCHAR(512) NOT NULL,
+                status_code SMALLINT UNSIGNED NOT NULL DEFAULT 301,
+                hit_count INT UNSIGNED NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                UNIQUE KEY uniq_source_path (source_path(191))
+            )
+            SQL);
+
+        $context->database()->migrate(<<<SQL
+            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_sample_urls (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                route_pattern VARCHAR(255) NOT NULL,
+                sample_url VARCHAR(512) NOT NULL,
+                label VARCHAR(255) NULL,
+                created_at DATETIME NOT NULL
+            )
+            SQL);
     }
 
-    /**
-     * Runs once, on `module:uninstall`. Drops this module's own tables —
-     * never touches arout/seo-toolkit's tables, only mod_seo_toolkit_pro_*.
-     */
     public function uninstall(ModuleContext $context): void
     {
-        foreach (['audits', '404s', 'redirects', 'sample_urls'] as $table) {
-            $context->database()->raw("DROP TABLE IF EXISTS mod_seo_toolkit_pro_{$table}");
-        }
+        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_audits');
+        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_404s');
+        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_redirects');
+        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_sample_urls');
     }
 }

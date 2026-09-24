@@ -4,17 +4,15 @@ namespace Arout\SeoToolkitPro\Listeners;
 
 use Rhapsody\Core\Events\RouteNotFound;
 use Rhapsody\Core\Http\Response;
+use Rhapsody\Core\Modules\Facades\DatabaseFacade;
 
 /**
- * NOTE: assumes RouteNotFound exposes getRequest(): Request (to read the
- * attempted path/referrer/IP) alongside the confirmed setResponse(Response).
- * Also assumes DatabaseFacade's fluent CRUD shape: ->table(name)->insert([]),
- * ->where(col, op, val)->first()/->update([]). Both unconfirmed — the
- * intent (check redirects, else log) won't change if the real calls differ.
+ * NOTE: still assumes RouteNotFound exposes getRequest(): Request — that
+ * part of the event hasn't been confirmed the way DatabaseFacade now has.
  */
 class RouteNotFoundListener
 {
-    public function __construct(private readonly object $database)
+    public function __construct(private readonly DatabaseFacade $database)
     {
     }
 
@@ -23,23 +21,22 @@ class RouteNotFoundListener
         $request = $event->getRequest();
         $path = $request->getPath();
 
-        $redirect = $this->database
-            ->table('mod_seo_toolkit_pro_redirects')
-            ->where('source_path', '=', $path)
-            ->first();
+        $matches = $this->database->select('mod_arout_seo_toolkit_pro_redirects', ['source_path' => $path]);
+        $redirect = $matches[0] ?? null;
 
         if ($redirect) {
-            $this->database
-                ->table('mod_seo_toolkit_pro_redirects')
-                ->where('id', '=', $redirect['id'])
-                ->update(['hit_count' => $redirect['hit_count'] + 1]);
+            $this->database->update(
+                'mod_arout_seo_toolkit_pro_redirects',
+                ['hit_count' => $redirect['hit_count'] + 1],
+                ['id' => $redirect['id']]
+            );
 
             $event->setResponse(Response::redirect($redirect['target_path'], (int) $redirect['status_code']));
             return;
         }
 
         // No redirect on file — log the raw hit and let it fall through to a real 404.
-        $this->database->table('mod_seo_toolkit_pro_404s')->insert([
+        $this->database->insert('mod_arout_seo_toolkit_pro_404s', [
             'url' => $path,
             'referrer' => $request->header('referer'),
             'ip_address' => $request->ip(),
