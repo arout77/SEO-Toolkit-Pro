@@ -14,19 +14,31 @@ use Rhapsody\Core\Modules\ModuleContext;
 
 class ModuleProvider implements ModuleServiceProviderInterface
 {
+    /**
+     * NOTE: register() vs boot() split is still a guess — I don't have the
+     * interface's doc comments or Core's own ModuleProvider to compare
+     * against. My assumption: register() should be safe to run in
+     * isolation (no dependency on other modules being wired yet), boot()
+     * runs once every module has been registered. If routes/events/twig
+     * functions actually need to be in register() instead (or it turns out
+     * order doesn't matter and there's only one meaningful phase), moving
+     * this block between the two methods is the only likely fix.
+     */
     public function register(ModuleContext $context): void
     {
-        // No cross-module bindings needed — everything below depends only
-        // on this module's own facades, so it all lives in boot().
+        // No cross-module bindings needed yet — everything below depends
+        // only on this module's own facades, so it's all in boot() for now.
     }
 
     public function boot(ModuleContext $context): void
     {
+        // --- 404 monitor + redirect manager ---
         $context->events()->listen(
             RouteNotFound::class,
             new RouteNotFoundListener($context->database())
         );
 
+        // --- Admin dashboard routes ---
         $dashboard = new ProDashboardController(
             $context->database(),
             $context->settings(),
@@ -47,88 +59,44 @@ class ModuleProvider implements ModuleServiceProviderInterface
         $context->routes()->get('/settings', [$dashboard, 'settingsForm']);
         $context->routes()->post('/settings', [$dashboard, 'saveSettings']);
 
-        // FIX: TwigFacade has no functions() method — it's addFunction($name, $callback, $options = []),
-        // one call per function, and $callback must be a callable, not an array/object map.
-        // This assumes AnalyticsTwigFunctions implements __invoke() so the instance itself is callable;
-        // if it exposes a named render method instead, this needs to be [$instance, 'methodName'].
-        $context->twig()->addFunction(
-            'seo_analytics_scripts',
-            new AnalyticsTwigFunctions($context->settings())
-        );
+        // --- Analytics tag manager ---
+        $context->twig()->functions([
+            'seo_analytics_scripts' => new AnalyticsTwigFunctions($context->settings()),
+        ]);
     }
 
     /**
-     * migrate() takes exactly one CREATE/ALTER/DROP TABLE statement per
-     * call (it extracts a single table name via regex to check ownership),
-     * so each table is its own call rather than one multi-statement file.
+     * Runs once, on `module:install`. Executes each DDL statement from the
+     * migration file through DatabaseFacade::migrate(), which only accepts
+     * CREATE/ALTER/DROP TABLE on tables starting with this module's prefix
+     * (mod_arout_seo_toolkit_pro_).
      */
     public function install(ModuleContext $context): void
     {
-        $context->database()->migrate(<<<SQL
-            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_audits (
-                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                route_path VARCHAR(255) NOT NULL,
-                source_type ENUM('static', 'sample_url') NOT NULL DEFAULT 'static',
-                route_pattern VARCHAR(255) NULL,
-                title VARCHAR(255) NULL,
-                title_length INT UNSIGNED NULL,
-                meta_description TEXT NULL,
-                meta_description_length INT UNSIGNED NULL,
-                h1_count INT UNSIGNED NOT NULL DEFAULT 0,
-                images_total INT UNSIGNED NOT NULL DEFAULT 0,
-                images_missing_alt INT UNSIGNED NOT NULL DEFAULT 0,
-                has_canonical TINYINT(1) NOT NULL DEFAULT 0,
-                word_count INT UNSIGNED NOT NULL DEFAULT 0,
-                readability_score DECIMAL(5,2) NULL,
-                readability_label VARCHAR(64) NULL,
-                keywords TEXT NULL,
-                scanned_at DATETIME NOT NULL,
-                UNIQUE KEY uniq_route_path (route_path(191))
-            )
-            SQL);
+        $path = __DIR__ . '/../database/migrations/2026_09_24_000001_create_seo_toolkit_pro_tables.sql';
+        $sql  = file_get_contents($path);
 
-        $context->database()->migrate(<<<SQL
-            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_404s (
-                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                url VARCHAR(512) NOT NULL,
-                referrer VARCHAR(512) NULL,
-                ip_address VARCHAR(45) NULL,
-                user_agent VARCHAR(255) NULL,
-                occurred_at DATETIME NOT NULL,
-                KEY idx_url (url(191)),
-                KEY idx_occurred_at (occurred_at)
-            )
-            SQL);
+        if ($sql === false) {
+            throw new \RuntimeException("Could not read migration file: {$path}");
+        }
 
-        $context->database()->migrate(<<<SQL
-            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_redirects (
-                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                source_path VARCHAR(512) NOT NULL,
-                target_path VARCHAR(512) NOT NULL,
-                status_code SMALLINT UNSIGNED NOT NULL DEFAULT 301,
-                hit_count INT UNSIGNED NOT NULL DEFAULT 0,
-                created_at DATETIME NOT NULL,
-                updated_at DATETIME NOT NULL,
-                UNIQUE KEY uniq_source_path (source_path(191))
-            )
-            SQL);
+        // migrate() requires each statement to start with its DDL verb,
+        // so strip full-line "--" comments before splitting.
+        $sql = preg_replace('/^\s*--.*$/m', '', $sql);
 
-        $context->database()->migrate(<<<SQL
-            CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_sample_urls (
-                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                route_pattern VARCHAR(255) NOT NULL,
-                sample_url VARCHAR(512) NOT NULL,
-                label VARCHAR(255) NULL,
-                created_at DATETIME NOT NULL
-            )
-            SQL);
+        foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
+            $context->database()->migrate($statement);
+        }
     }
 
+    /**
+     * Runs once, on `module:uninstall`. Drops this module's own tables —
+     * never touches arout/seo-toolkit's tables, only mod_arout_seo_toolkit_pro_*.
+     */
     public function uninstall(ModuleContext $context): void
     {
-        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_audits');
-        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_404s');
-        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_redirects');
-        $context->database()->migrate('DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_sample_urls');
+        foreach (['audits', '404s', 'redirects', 'sample_urls'] as $table) {
+            $context->database()->migrate("DROP TABLE IF EXISTS mod_arout_seo_toolkit_pro_{$table}");
+        }
     }
 }

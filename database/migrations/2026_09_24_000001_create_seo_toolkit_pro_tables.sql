@@ -1,12 +1,4 @@
--- NOTE: Assumed migration convention — a plain, timestamp-prefixed .sql file
--- picked up by `rhapsody module:install arout/seo-toolkit-pro`. This has not
--- been confirmed against the real module installer / DatabaseFacade migration
--- runner. If modules actually ship migrations as PHP classes (mirroring
--- SkeletonMigrationInterface, or Phinx-style), tell me the expected shape and
--- I'll convert these straight over — the table definitions themselves won't
--- change either way.
-
-CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_audits (
+CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_audits (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     route_path VARCHAR(255) NOT NULL,
     source_type ENUM('static', 'sample_url') NOT NULL DEFAULT 'static',
@@ -27,7 +19,7 @@ CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_audits (
     UNIQUE KEY uniq_route_path (route_path)
 );
 
-CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_404s (
+CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_404s (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     url VARCHAR(512) NOT NULL,
     referrer VARCHAR(512) NULL,
@@ -38,7 +30,7 @@ CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_404s (
     KEY idx_occurred_at (occurred_at)
 );
 
-CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_redirects (
+CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_redirects (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     source_path VARCHAR(512) NOT NULL,
     target_path VARCHAR(512) NOT NULL,
@@ -49,7 +41,7 @@ CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_redirects (
     UNIQUE KEY uniq_source_path (source_path(191))
 );
 
-CREATE TABLE IF NOT EXISTS mod_seo_toolkit_pro_sample_urls (
+CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_sample_urls (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     route_pattern VARCHAR(255) NOT NULL COMMENT 'e.g. /products/{slug}, for display/grouping only',
     sample_url VARCHAR(512) NOT NULL COMMENT 'A real, concrete path the crawler can request, e.g. /products/leather-wallet',
