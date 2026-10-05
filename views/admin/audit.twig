@@ -1,0 +1,44 @@
+{% extends "@core/module-layout.twig" %}
+{% block module_content %}
+<header class="rhapsody-page-header">
+    <h1 class="rhapsody-title">SEO Audit</h1>
+</header>
+
+<form class="rhapsody-form rhapsody-form--inline" method="post" action="/seo-toolkit-pro/audit/scan">
+    {{ csrf_field()|raw }}
+    <button type="submit" class="rhapsody-btn">Run Scan</button>
+</form>
+
+<div class="rhapsody-table-wrap">
+    <table class="rhapsody-table">
+        <thead>
+            <tr><th>Path</th><th>Title</th><th>Title len</th><th>Meta desc len</th><th>H1s</th><th>Images missing alt</th><th>Canonical</th><th>Readability</th></tr>
+        </thead>
+        <tbody>
+        {% for audit in audits %}
+            <tr>
+                <td>{{ audit.route_path }}</td>
+                <td>{{ audit.title }}</td>
+                <td class="{{ audit.title_length > 60 or audit.title_length < 30 ? 'rhapsody-warn' : '' }}">{{ audit.title_length }}</td>
+                <td class="{{ audit.meta_description_length > 160 or audit.meta_description_length < 50 ? 'rhapsody-warn' : '' }}">{{ audit.meta_description_length }}</td>
+                <td class="{{ audit.h1_count != 1 ? 'rhapsody-warn' : '' }}">{{ audit.h1_count }}</td>
+                <td class="{{ audit.images_missing_alt > 0 ? 'rhapsody-warn' : '' }}">{{ audit.images_missing_alt }} / {{ audit.images_total }}</td>
+                <td class="{{ not audit.has_canonical ? 'rhapsody-warn' : '' }}">{{ audit.has_canonical ? 'Yes' : 'No' }}</td>
+                <td>{{ audit.readability_label }} ({{ audit.readability_score }})</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="8" class="rhapsody-muted">No audit results yet. Run a scan to get started.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h2 class="rhapsody-section-title">Internal linking suggestions</h2>
+<ul class="rhapsody-list">
+{% for s in link_suggestions %}
+    <li>Link <strong>{{ s.from }}</strong> &harr; <strong>{{ s.to }}</strong> — shared: {{ s.shared_keywords|join(', ') }}</li>
+{% else %}
+    <li class="rhapsody-muted">No suggestions yet.</li>
+{% endfor %}
+</ul>
+{% endblock %}

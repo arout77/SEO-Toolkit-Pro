@@ -1,0 +1,30 @@
+{% extends "@core/module-layout.twig" %}
+{% block module_content %}
+<header class="rhapsody-page-header">
+    <h1 class="rhapsody-title">Analytics Settings</h1>
+</header>
+
+<form class="rhapsody-form" method="post" action="/seo-toolkit-pro/settings">
+    {{ csrf_field()|raw }}
+    <div class="rhapsody-field">
+        <label class="rhapsody-label" for="ga4_id">GA4 Measurement ID</label>
+        <input type="text" class="rhapsody-input" id="ga4_id" name="ga4_id" value="{{ ga4_id }}" placeholder="G-XXXXXXX">
+    </div>
+    <div class="rhapsody-field">
+        <label class="rhapsody-label" for="meta_pixel_id">Meta Pixel ID</label>
+        <input type="text" class="rhapsody-input" id="meta_pixel_id" name="meta_pixel_id" value="{{ meta_pixel_id }}">
+    </div>
+    <div class="rhapsody-field">
+        <label class="rhapsody-label" for="custom_script">Custom script</label>
+        <textarea class="rhapsody-textarea" id="custom_script" name="custom_script" spellcheck="false">{{ custom_script }}</textarea>
+        <span class="rhapsody-help">Raw HTML/JS, injected as-is.</span>
+    </div>
+    <div class="rhapsody-actions">
+        <button type="submit" class="rhapsody-btn">Save</button>
+    </div>
+</form>
+
+<div class="rhapsody-alert rhapsody-alert--info" style="margin-top: 20px;">
+    Remember: your theme's layout must call <code>mod_seo_toolkit_pro_seo_analytics_scripts()|raw</code> near <code>&lt;/head&gt;</code> for any of this to actually render — <code>addFunction()</code> auto-prefixes the registered name with <code>mod_{slug}_</code>, so the bare <code>seo_analytics_scripts()</code> name isn't callable from a template.
+</div>
+{% endblock %}

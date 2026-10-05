@@ -1,0 +1,33 @@
+{% extends "@core/module-layout.twig" %}
+{% block module_content %}
+<header class="rhapsody-page-header">
+    <h1 class="rhapsody-title">404 Monitor</h1>
+</header>
+
+<div class="rhapsody-table-wrap">
+    <table class="rhapsody-table">
+        <thead><tr><th>URL</th><th>Hits</th><th>First seen</th><th>Last seen</th><th></th></tr></thead>
+        <tbody>
+        {% for entry in entries %}
+            <tr>
+                <td>{{ entry.url }}</td>
+                <td>{{ entry.hits }}</td>
+                <td>{{ entry.first_seen }}</td>
+                <td>{{ entry.last_seen }}</td>
+                <td>
+                    <form class="rhapsody-form rhapsody-form--inline" method="post" action="/seo-toolkit-pro/404s/promote">
+                        {{ csrf_field()|raw }}
+                        <input type="hidden" name="source_path" value="{{ entry.url }}">
+                        <input type="text" class="rhapsody-input" name="target_path" placeholder="/redirect-to" required>
+                        <select class="rhapsody-select" name="status_code"><option value="301">301</option><option value="302">302</option></select>
+                        <button type="submit" class="rhapsody-btn rhapsody-btn--sm">Create redirect</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="rhapsody-muted">No 404s recorded.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,3 +1,11 @@
+-- NOTE: Assumed migration convention — a plain, timestamp-prefixed .sql file
+-- picked up by `rhapsody module:install arout/seo-toolkit-pro`. This has not
+-- been confirmed against the real module installer / DatabaseFacade migration
+-- runner. If modules actually ship migrations as PHP classes (mirroring
+-- SkeletonMigrationInterface, or Phinx-style), tell me the expected shape and
+-- I'll convert these straight over — the table definitions themselves won't
+-- change either way.
+
 CREATE TABLE IF NOT EXISTS mod_arout_seo_toolkit_pro_audits (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     route_path VARCHAR(255) NOT NULL,

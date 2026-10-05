@@ -1,0 +1,40 @@
+{% extends "@core/module-layout.twig" %}
+{% block module_content %}
+<header class="rhapsody-page-header">
+    <h1 class="rhapsody-title">Sample URLs</h1>
+    <p class="rhapsody-muted">Register one real, concrete URL per parameterized route pattern so the audit crawler has something to request.</p>
+</header>
+
+<div class="rhapsody-card">
+    <form class="rhapsody-form rhapsody-form--inline" method="post" action="/seo-toolkit-pro/sample-urls">
+        {{ csrf_field()|raw }}
+        <input type="text" class="rhapsody-input" name="route_pattern" placeholder="/products/{slug}" required>
+        <input type="text" class="rhapsody-input" name="sample_url" placeholder="/products/leather-wallet" required>
+        <input type="text" class="rhapsody-input" name="label" placeholder="Label (optional)">
+        <button type="submit" class="rhapsody-btn">Add</button>
+    </form>
+</div>
+
+<div class="rhapsody-table-wrap">
+    <table class="rhapsody-table">
+        <thead><tr><th>Route pattern</th><th>Sample URL</th><th>Label</th><th></th></tr></thead>
+        <tbody>
+        {% for s in sample_urls %}
+            <tr>
+                <td>{{ s.route_pattern }}</td>
+                <td>{{ s.sample_url }}</td>
+                <td>{{ s.label }}</td>
+                <td>
+                    <form class="rhapsody-form rhapsody-form--inline" method="post" action="/seo-toolkit-pro/sample-urls/{{ s.id }}/delete">
+                        {{ csrf_field()|raw }}
+                        <button type="submit" class="rhapsody-btn rhapsody-btn--danger rhapsody-btn--sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="4" class="rhapsody-muted">No sample URLs registered.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
